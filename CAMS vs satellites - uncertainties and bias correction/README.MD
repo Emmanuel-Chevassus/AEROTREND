@@ -55,7 +55,7 @@ The resulting multiplicative factor is approximately:
 ```text
 2.6640 × 10^-16 mg m^-2 per molecule cm^-2
 ```
-The factor is `10^4`, not `10^-4`, because a column reported per cm<sup>2</sup> must be scaled up to the equivalent number of molecules per m<sup>2</sup>. One square metre contains 10,000 square centimetres.
+
 Temporal aggregation
 Both products are aggregated to monthly means. The notebook uses a coverage threshold of 0.25 for calendar-based imputation in the first analysis block. Missing values are handled conservatively during pairwise AIRS–CAMS comparison by retaining only months with both AIRS and CAMS values.
 The merged monthly dataset is written to:
