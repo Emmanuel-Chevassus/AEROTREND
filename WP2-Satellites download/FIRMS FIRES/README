@@ -1,35 +1,42 @@
-# FIRMS MODIS and VIIRS active-fire fields
-Please ask your own api keys at https://firms.modaps.eosdis.nasa.gov/api/map_key/
-This folder contains FIRMS active-fire detections downloaded over the full Mace Head HYSPLIT trajectory for 2003-2025. Each row is a satellite-detected thermal anomaly or active-fire pixel. The point location is the centre of the flagged pixel, not the physical fire perimeter. MODIS active-fire pixels are approximately 1 km at nadir, while VIIRS active-fire pixels are approximately 375 m at nadir. Pixel size increases away from nadir, which is why `scan` and `track` must be retained for interpretation. NASA describes FIRMS detections as active fires or other thermal anomalies, including vegetation fires, volcanoes, static land sources, and offshore sources.
+# FIRMS MODIS and VIIRS Active-Fire Fields
 
-## Columns used for interpretation
+This folder contains FIRMS active-fire detections downloaded over the full Mace Head HYSPLIT trajectory domain for 2003–2025.
+
+FIRMS data access requires a NASA FIRMS map key. Request your own key here:
+
+https://firms.modaps.eosdis.nasa.gov/api/map_key/
+
+Each row represents one satellite-detected thermal anomaly or active-fire pixel. The reported latitude and longitude are the centre of the flagged satellite pixel, not the physical fire perimeter.
+
+MODIS active-fire pixels are approximately 1 km at nadir. VIIRS active-fire pixels are approximately 375 m at nadir. Pixel size increases away from nadir, so `scan` and `track` must be retained when interpreting footprint size, spatial uncertainty, or proximity to HYSPLIT trajectories.
+
+NASA describes FIRMS detections as active fires or other thermal anomalies, including vegetation fires, volcanoes, static land sources, and offshore sources.
+
+## Products
+
+The dataset may include detections from:
+
+- MODIS active-fire products
+- VIIRS active-fire products
+
+MODIS and VIIRS fields are similar but not fully interchangeable. Brightness temperatures, confidence coding, spatial resolution, and detection sensitivity differ between sensors. Do not pool sensor-specific thermal metrics without explicitly accounting for product differences.
+
+## Key columns
 
 | Column | Meaning | Units or coding | Scientific interpretation |
 |---|---|---:|---|
-| `brightness` | MODIS channel 21/22 brightness temperature or VIIRS I4 brightness temperature, depending on product | K | Thermal intensity of the fire pixel in the mid-infrared. Larger values indicate a stronger sub-pixel thermal anomaly, but values are sensor-dependent and should not be compared blindly between MODIS and VIIRS. |
-| `scan` | Across-track pixel size | km | Width of the satellite pixel footprint. Larger `scan` means a larger ground footprint and more spatial uncertainty. Use this when weighting or filtering detections near trajectory paths. |
-| `track` | Along-track pixel size | km | Length of the satellite pixel footprint. Together with `scan`, gives approximate pixel area. Pixel area can be approximated as `scan × track`. |
-| `acq_date` | Satellite acquisition date | UTC date | Date of satellite overpass. Use with `acq_time` to create a proper UTC timestamp. |
-| `acq_time` | Satellite acquisition time | UTC, HHMM integer | Time of overpass. Values such as `40` mean `00:40 UTC`; values such as `502` mean `05:02 UTC`. Pad to four digits before parsing. |
-| `confidence` | Detection confidence | MODIS: 0 to 100 percent; VIIRS: `l`, `n`, `h` | Quality indicator for each detected pixel. MODIS confidence is numeric; VIIRS confidence is categorical. |
-| `version` | Processing collection and source | Text or number | Identifies product collection and processing stream. Standard processing is preferable for retrospective analysis; near-real-time products are useful operationally but may be revised. |
-| `bright_t31` | MODIS channel 31 or VIIRS I5 brightness temperature | K | Longwave infrared background/fire-pixel temperature. Useful with `brightness` to distinguish thermal contrast and contextual anomaly strength. |
-| `frp` | Fire radiative power | MW | Pixel-integrated radiative power. This is the most useful continuous proxy for combustion intensity and emissions potential, although it is affected by cloud, view geometry, saturation, and sub-pixel fire structure. |
+| `brightness` | MODIS channel 21/22 brightness temperature or VIIRS I4 brightness temperature, depending on product | K | Mid-infrared thermal intensity of the detected pixel. Larger values indicate a stronger sub-pixel thermal anomaly, but values are sensor-dependent and should not be compared directly between MODIS and VIIRS without caution. |
+| `scan` | Across-track pixel size | km | Width of the satellite pixel footprint. Larger values indicate a larger ground footprint and greater spatial uncertainty. Useful for trajectory proximity filtering or footprint weighting. |
+| `track` | Along-track pixel size | km | Length of the satellite pixel footprint. Together with `scan`, gives an approximate pixel area. |
+| `acq_date` | Satellite acquisition date | UTC date | Date of satellite overpass. Combine with `acq_time` to construct a proper UTC timestamp. |
+| `acq_time` | Satellite acquisition time | UTC, HHMM integer | Time of overpass. Values must be padded to four digits before parsing, for example `40` becomes `0040` and `502` becomes `0502`. |
+| `confidence` | Detection confidence | MODIS: 0–100 percent; VIIRS: `l`, `n`, `h` | Quality indicator for each detected pixel. MODIS confidence is numeric, whereas VIIRS confidence is categorical. |
+| `version` | Processing collection and source | Text or number | Identifies product collection and processing stream. Standard processing is preferable for retrospective analysis. Near-real-time products are useful operationally but may be revised. |
+| `bright_t31` | MODIS channel 31 or VIIRS I5 brightness temperature | K | Longwave infrared background or fire-pixel temperature. Useful with `brightness` to evaluate thermal contrast and contextual anomaly strength. |
+| `frp` | Fire radiative power | MW | Pixel-integrated radiative power. This is the most useful continuous proxy for combustion intensity and emissions potential, although it is affected by cloud, viewing geometry, saturation, and sub-pixel fire structure. |
 | `type` | Inferred hotspot type | 0, 1, 2, 3 | For MODIS/FIRMS: `0 = presumed vegetation fire`, `1 = active volcano`, `2 = other static land source`, `3 = offshore`. For biomass-burning aerosol interpretation, usually retain `type == 0`; treat `type == 2` and `type == 3` separately or remove them. |
 
-## Confidence filtering
-
-### MODIS
-
-MODIS `confidence` ranges from 0 to 100 percent. The MODIS fire product user guide defines the classes as:
-
-| MODIS confidence | Class | Suggested use |
-|---:|---|---|
-| `0 ≤ confidence < 30` | Low | Highest false-alarm risk; use only in sensitivity tests or when maximum detectability is required. |
-| `30 ≤ confidence < 80` | Nominal | Recommended baseline together with high-confidence detections. |
-| `80 ≤ confidence ≤ 100` | High | Conservative subset; fewer false positives but more omission of weak or small fires. |
-
-For a defensible baseline, use:
+Approximate pixel area can be calculated as:
 
 ```python
-modis = modis[modis["confidence"] >= 30]
+fires["pixel_area_km2"] = fires["scan"] * fires["track"]
